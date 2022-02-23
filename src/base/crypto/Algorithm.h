@@ -65,9 +65,17 @@ public:
         CN_PICO_0       = 0x63120200,   // "cn-pico"          CryptoNight-Pico
         CN_PICO_TLO     = 0x63120274,   // "cn-pico/tlo"      CryptoNight-Pico (TLO)
         CN_UPX2         = 0x63110200,   // "cn/upx2"          Uplexa (UPX2)
+        CN_GR_0         = 0x63130100,   // "cn/dark"          GhostRider
+        CN_GR_1         = 0x63130101,   // "cn/dark-lite"     GhostRider
+        CN_GR_2         = 0x63150102,   // "cn/fast"          GhostRider
+        CN_GR_3         = 0x63140103,   // "cn/lite"          GhostRider
+        CN_GR_4         = 0x63120104,   // "cn/turtle"        GhostRider
+        CN_GR_5         = 0x63120105,   // "cn/turtle-lite"   GhostRider
+        GHOSTRIDER_RTM  = 0x6c150000,   // "ghostrider"       GhostRider
         RX_0            = 0x72151200,   // "rx/0"             RandomX (reference configuration).
         RX_WOW          = 0x72141177,   // "rx/wow"           RandomWOW (Wownero).
         RX_ARQ          = 0x72121061,   // "rx/arq"           RandomARQ (Arqma).
+        RX_GRAFT        = 0x72151267,   // "rx/graft"         RandomGRAFT (Graft).
         RX_SFX          = 0x72151273,   // "rx/sfx"           RandomSFX (Safex Cash).
         RX_KEVA         = 0x7214116b,   // "rx/keva"          RandomKEVA (Keva).
         AR2_CHUKWA      = 0x61130000,   // "argon2/chukwa"    Argon2id (Chukwa).
@@ -88,7 +96,8 @@ public:
         RANDOM_X        = 0x72000000,
         ARGON2          = 0x61000000,
         ASTROBWT        = 0x41000000,
-        KAWPOW          = 0x6b000000
+        KAWPOW          = 0x6b000000,
+        GHOSTRIDER      = 0x6c000000
     };
 
     static const char *kINVALID;
@@ -134,6 +143,7 @@ public:
     static const char *kRX_0;
     static const char *kRX_WOW;
     static const char *kRX_ARQ;
+    static const char *kRX_GRAFT;
     static const char *kRX_SFX;
     static const char *kRX_KEVA;
 #   endif
@@ -155,6 +165,11 @@ public:
     static const char *kKAWPOW_RVN;
 #   endif
 
+#   ifdef XMRIG_ALGO_GHOSTRIDER
+    static const char* kGHOSTRIDER;
+    static const char* kGHOSTRIDER_RTM;
+#   endif
+
     inline Algorithm() = default;
     inline Algorithm(const char *algo) : m_id(parse(algo))  {}
     inline Algorithm(Id id) : m_id(id)                      {}
@@ -164,7 +179,7 @@ public:
     static inline constexpr bool isCN(Id id)                { return (id & 0xff000000) == CN_ANY; }
     static inline constexpr Id base(Id id)                  { return isCN(id) ? static_cast<Id>(CN_0 | (id & 0xff00)) : INVALID; }
     static inline constexpr size_t l2(Id id)                { return family(id) == RANDOM_X ? (1U << ((id >> 8) & 0xff)) : 0U; }
-    static inline constexpr size_t l3(Id id)                { return 1U << ((id >> 16) & 0xff); }
+    static inline constexpr size_t l3(Id id)                { return 1ULL << ((id >> 16) & 0xff); }
     static inline constexpr uint32_t family(Id id)          { return id & (isCN(id) ? 0xffff0000 : 0xff000000); }
 
     inline bool isCN() const                                { return isCN(m_id); }
@@ -174,7 +189,8 @@ public:
     inline Id id() const                                    { return m_id; }
     inline size_t l2() const                                { return l2(m_id); }
     inline uint32_t family() const                          { return family(m_id); }
-    inline uint32_t maxIntensity() const                    { return isCN() ? 5 : 1; };
+    inline uint32_t minIntensity() const                    { return ((m_id == GHOSTRIDER_RTM) ? 8 : 1); };
+    inline uint32_t maxIntensity() const                    { return isCN() ? 5 : ((m_id == GHOSTRIDER_RTM) ? 8 : 1); };
 
     inline size_t l3() const
     {

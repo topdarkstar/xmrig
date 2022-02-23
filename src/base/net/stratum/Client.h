@@ -84,6 +84,7 @@ protected:
     inline const char *url() const                                          { return m_pool.url(); }
     inline const String &rpcId() const                                      { return m_rpcId; }
     inline void setRpcId(const char *id)                                    { m_rpcId = id; }
+    inline void setPoolUrl(const char *url)                                 { m_pool.setUrl(url); }
 
     virtual bool parseLogin(const rapidjson::Value &result, int *code);
     virtual void login();
@@ -96,7 +97,6 @@ private:
     class Socks5;
     class Tls;
 
-    bool isCriticalError(const char *message);
     bool parseJob(const rapidjson::Value &params, int *code);
     bool send(BIO *bio);
     bool verifyAlgorithm(const Algorithm &algorithm, const char *algo) const;
@@ -119,6 +119,7 @@ private:
     inline void setExtension(Extension ext, bool enable) noexcept   { m_extensions.set(ext, enable); }
     template<Extension ext> inline bool has() const noexcept        { return m_extensions.test(ext); }
 
+    static bool isCriticalError(const char *message);
     static void onClose(uv_handle_t *handle);
     static void onConnect(uv_connect_t *req, int status);
     static void onRead(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf);

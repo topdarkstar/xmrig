@@ -30,6 +30,7 @@
 
 
 #include "base/net/stratum/Job.h"
+#include "base/tools/Alignment.h"
 #include "base/tools/Buffer.h"
 #include "base/tools/Cvt.h"
 #include "base/tools/cryptonote/BlockTemplate.h"
@@ -47,7 +48,7 @@ xmrig::Job::Job(bool nicehash, const Algorithm &algorithm, const String &clientI
 
 bool xmrig::Job::isEqual(const Job &other) const
 {
-    return m_id == other.m_id && m_clientId == other.m_clientId && memcmp(m_blob, other.m_blob, sizeof(m_blob)) == 0;
+    return m_id == other.m_id && m_clientId == other.m_clientId && memcmp(m_blob, other.m_blob, sizeof(m_blob)) == 0 && m_target == other.m_target;
 }
 
 
@@ -73,7 +74,7 @@ bool xmrig::Job::setBlob(const char *blob)
         return false;
     }
 
-    if (*nonce() != 0 && !m_nicehash) {
+    if (readUnaligned(nonce()) != 0 && !m_nicehash) {
         m_nicehash = true;
     }
 
@@ -352,16 +353,16 @@ void xmrig::Job::generateHashingBlob(String &blob) const
 {
     uint8_t root_hash[32];
     const uint8_t* p = m_minerTxPrefix.data();
-    BlockTemplate::CalculateRootHash(p, p + m_minerTxPrefix.size(), m_minerTxMerkleTreeBranch, root_hash);
+    BlockTemplate::calculateRootHash(p, p + m_minerTxPrefix.size(), m_minerTxMerkleTreeBranch, root_hash);
 
     uint64_t root_hash_offset = nonceOffset() + nonceSize();
 
     if (m_hasMinerSignature) {
-        root_hash_offset += BlockTemplate::SIGNATURE_SIZE + 2 /* vote */;
+        root_hash_offset += BlockTemplate::kSignatureSize + 2 /* vote */;
     }
 
     blob = rawBlob();
-    Cvt::toHex(blob.data() + root_hash_offset * 2, 64, root_hash, BlockTemplate::HASH_SIZE);
+    Cvt::toHex(blob.data() + root_hash_offset * 2, 64, root_hash, BlockTemplate::kHashSize);
 }
 
 
@@ -374,7 +375,7 @@ void xmrig::Job::generateMinerSignature(const uint8_t* blob, size_t size, uint8_
     memcpy(tmp, blob, size);
 
     // Fill signature with zeros
-    memset(tmp + nonceOffset() + nonceSize(), 0, BlockTemplate::SIGNATURE_SIZE);
+    memset(tmp + nonceOffset() + nonceSize(), 0, BlockTemplate::kSignatureSize);
 
     uint8_t prefix_hash[32];
     xmrig::keccak(tmp, static_cast<int>(size), prefix_hash, sizeof(prefix_hash));

@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cstring>
 #include <utility>
+#include <sstream>
 
 
 #ifdef XMRIG_FEATURE_TLS
@@ -349,32 +350,6 @@ bool xmrig::Client::close()
 }
 
 
-bool xmrig::Client::isCriticalError(const char *message)
-{
-    if (!message) {
-        return false;
-    }
-
-    if (strncasecmp(message, "Unauthenticated", 15) == 0) {
-        return true;
-    }
-
-    if (strncasecmp(message, "your IP is banned", 17) == 0) {
-        return true;
-    }
-
-    if (strncasecmp(message, "IP Address currently banned", 27) == 0) {
-        return true;
-    }
-
-    if (strncasecmp(message, "Invalid job id", 14) == 0) {
-        return true;
-    }
-
-    return false;
-}
-
-
 bool xmrig::Client::parseJob(const rapidjson::Value &params, int *code)
 {
     if (!params.IsObject()) {
@@ -465,7 +440,7 @@ bool xmrig::Client::send(BIO *bio)
 {
 #   ifdef XMRIG_FEATURE_TLS
     uv_buf_t buf;
-    buf.len = BIO_get_mem_data(bio, &buf.base);
+    buf.len = BIO_get_mem_data(bio, &buf.base); // NOLINT(cppcoreguidelines-pro-type-cstyle-cast)
 
     if (buf.len == 0) {
         return true;
@@ -686,7 +661,7 @@ void xmrig::Client::parse(char *line, size_t len)
 
     LOG_DEBUG("[%s] received (%d bytes): \"%.*s\"", url(), len, static_cast<int>(len), line);
 
-    if (len < 32 || line[0] != '{') {
+    if (len < 22 || line[0] != '{') {
         if (!isQuiet()) {
             LOG_ERR("%s " RED("JSON decode failed"), tag());
         }
@@ -709,12 +684,48 @@ void xmrig::Client::parse(char *line, size_t len)
 
     const auto &id    = Json::getValue(doc, "id");
     const auto &error = Json::getValue(doc, "error");
+    const char *method = Json::getString(doc, "method");
+
+    if (method && strcmp(method, "client.reconnect") == 0) {
+        const auto &params = Json::getValue(doc, "params");
+        if (!params.IsArray()) {
+            LOG_ERR("%s " RED("invalid client.reconnect notification: params is not an array"), tag());
+            return;
+        }
+
+        auto arr = params.GetArray();
+
+        if (arr.Empty()) {
+            LOG_ERR("%s " RED("invalid client.reconnect notification: params array is empty"), tag());
+            return;
+        }
+
+        if (arr.Size() != 2) {
+            LOG_ERR("%s " RED("invalid client.reconnect notification: params array has wrong size"), tag());
+            return;
+        }
+
+        if (!arr[0].IsString()) {
+            LOG_ERR("%s " RED("invalid client.reconnect notification: host is not a string"), tag());
+            return;
+        }
+
+        if (!arr[1].IsString()) {
+            LOG_ERR("%s " RED("invalid client.reconnect notification: port is not a string"), tag());
+            return;
+        }
+
+        std::stringstream s;
+        s << arr[0].GetString() << ":" << arr[1].GetString();
+        LOG_WARN("%s " YELLOW("client.reconnect to %s"), tag(), s.str().c_str());
+        setPoolUrl(s.str().c_str());
+        return reconnect();
+    }
 
     if (id.IsInt64()) {
         return parseResponse(id.GetInt64(), Json::getValue(doc, "result"), error);
     }
 
-    const char *method = Json::getString(doc, "method");
     if (!method) {
         return;
     }
@@ -956,6 +967,32 @@ void xmrig::Client::startTimeout()
 
         m_keepAlive = Chrono::steadyMSecs() + ms;
     }
+}
+
+
+bool xmrig::Client::isCriticalError(const char *message)
+{
+    if (!message) {
+        return false;
+    }
+
+    if (strncasecmp(message, "Unauthenticated", 15) == 0) {
+        return true;
+    }
+
+    if (strncasecmp(message, "your IP is banned", 17) == 0) {
+        return true;
+    }
+
+    if (strncasecmp(message, "IP Address currently banned", 27) == 0) {
+        return true;
+    }
+
+    if (strncasecmp(message, "Invalid job id", 14) == 0) {
+        return true;
+    }
+
+    return false;
 }
 
 

@@ -45,7 +45,7 @@ static RxPrivate *d_ptr     = nullptr;
 class RxPrivate
 {
 public:
-    inline RxPrivate(IRxListener *listener) : queue(listener) {}
+    inline explicit RxPrivate(IRxListener *listener) : queue(listener) {}
 
     RxQueue queue;
 };
@@ -92,6 +92,9 @@ bool xmrig::Rx::init(const T &seed, const RxConfig &config, const CpuConfig &cpu
 #       ifdef XMRIG_ALGO_CN_HEAVY
         && (f != Algorithm::CN_HEAVY)
 #       endif
+#       ifdef XMRIG_ALGO_GHOSTRIDER
+        && (f != Algorithm::GHOSTRIDER)
+#       endif
         ) {
 #       ifdef XMRIG_FEATURE_MSR
         RxMsr::destroy();
@@ -108,6 +111,12 @@ bool xmrig::Rx::init(const T &seed, const RxConfig &config, const CpuConfig &cpu
 
 #   ifdef XMRIG_ALGO_CN_HEAVY
     if (f == Algorithm::CN_HEAVY) {
+        return true;
+    }
+#   endif
+
+#   ifdef XMRIG_ALGO_GHOSTRIDER
+    if (f == Algorithm::GHOSTRIDER) {
         return true;
     }
 #   endif

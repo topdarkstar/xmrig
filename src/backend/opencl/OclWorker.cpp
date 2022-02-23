@@ -23,6 +23,7 @@
 #include "backend/opencl/runners/tools/OclSharedData.h"
 #include "backend/opencl/runners/tools/OclSharedState.h"
 #include "base/io/log/Log.h"
+#include "base/tools/Alignment.h"
 #include "base/tools/Chrono.h"
 #include "core/Miner.h"
 #include "crypto/common/Nonce.h"
@@ -85,7 +86,7 @@ xmrig::OclWorker::OclWorker(size_t id, const OclLaunchData &data) :
 
     case Algorithm::ARGON2:
 #       ifdef XMRIG_ALGO_ARGON2
-        m_runner = nullptr; // TODO OclArgon2Runner
+        m_runner = nullptr;
 #       endif
         break;
 
@@ -179,7 +180,7 @@ void xmrig::OclWorker::start()
             const uint64_t t = Chrono::steadyMSecs();
 
             try {
-                m_runner->run(*m_job.nonce(), results);
+                m_runner->run(readUnaligned(m_job.nonce()), results);
             }
             catch (std::exception &ex) {
                 printError(id(), ex.what());
